@@ -1,15 +1,27 @@
+# Time
 import time
+# Network
 import socket
+# Binary
 import struct
-
 # Enums
 from enum import Enum
 
-# Message type
+
+#
+# Message types used to communicate server <-> client
+#
 class MessageType(Enum):
+	# User trying to perform login
 	LOGIN = 0
+
+	# User trying to perform signup
 	SIGNUP = 1
 
+
+#
+# Message DTO
+#
 class Message():
 	# Type of message
 	# 0 - login
@@ -29,10 +41,20 @@ class Message():
 	username: str
 
 	# Password 4 digits
-	password: int
+	password: str
 
+	#
 	# Constructor
-	def __init__(self, id: int = 0, type: MessageType = MessageType.SIGNUP, authorized: bool = False, username: str = "guest", password: str = "0000", timestamp: int = None):
+	#
+	def __init__(
+		self,
+		id: int = 0,
+		type: MessageType = MessageType.SIGNUP,
+		authorized: bool = False,
+		username: str = "guest",
+		password: str = "0000",
+		timestamp: int = None
+	):
 		
 		# Validate type
 		if not isinstance(type, MessageType):
@@ -66,10 +88,12 @@ class Message():
 			raise ValueError('Password must be 4 digits')
 		self.password = password
 
+
 	# Update timestamp
 	def update_timestamp(self):
 		self.timestamp = int(time.time())
-		
+
+
 	# Serialize message to bytes
 	def pack(self) -> bytes:
 		# Type: 1bit
@@ -88,23 +112,33 @@ class Message():
 		combined_byte = (type_bit << 5) | (id_bits << 1) | auth_bit
 
 		# Pack the combined byte, timestamp, username, and password into binary format
-		return struct.pack("Bq50s4s",
-						combined_byte,
-						self.timestamp,
-						self.username.encode('utf-8'),
-						str(self.password).encode('utf-8'))
-	
+		return struct.pack(
+			"Bq50s4s",
+			combined_byte,
+			self.timestamp,
+			self.username.encode('utf-8'),
+			str(self.password).encode('utf-8')
+		)
 
+
+	#
 	# Send message to socket
+	#
 	def send(self, conn: socket.socket):
 		# Send message
 		self.update_timestamp()
 		conn.send(self.pack())
 
+
+	#
 	# Send message to socket and wait for response
 	# Timeout in seconds
-	def send_and_receive(self, conn: socket.socket, timeout: int = 10) -> 'Message':
-		
+	#
+	def send_and_receive(
+		self,
+		conn: socket.socket,
+		timeout: int = 10
+	) -> 'Message':
 		# Set a timeout
 		conn.settimeout(timeout)
 
@@ -113,7 +147,6 @@ class Message():
 
 		# Wait for response
 		while True:
-			
 			# Receive message
 			message = conn.recv(1024)
 
@@ -125,12 +158,12 @@ class Message():
 				# Check if message is valid
 				if message.id == self.id:
 					return message
-				
+
+
 	# Receive message from socket with timeout
 	# Timeout in seconds
 	@staticmethod
 	def receive(conn: socket.socket, timeout: int = 10) -> 'Message':
-		
 		# Set a timeout of 5 seconds
 		conn.settimeout(timeout)
 
@@ -144,6 +177,7 @@ class Message():
 				message = Message.unpack(message)
 
 				return message
+
 
 	# Deserialize bytes to message
 	@staticmethod
@@ -164,11 +198,13 @@ class Message():
 		message = Message(id, type, auth, username, password, timestamp)
 
 		return message
-	
+
+
 	# Message length
 	@staticmethod
 	def length() -> int:
 		return len(Message().pack())
+
 
 	# String representation
 	def __str__(self) -> str:
